@@ -1,0 +1,44 @@
+# /etc/promtail/config.yml
+server:
+  http_listen_port: 9080
+  grpc_listen_port: 0
+
+positions:
+  filename: /var/log/promtail/positions.yaml # This file keeps track of how much Promtail has read
+
+clients:
+  # Replace with the actual IP address of your Loki VM and Loki's port (default 3100)
+  - url: http://<IP_ADDRESS>:3100/loki/api/v1/push
+
+scrape_configs:
+  - job_name: suricata_eve_logs
+    static_configs:
+      - targets:
+          - localhost
+        labels:
+          job: suricata_ids
+          __path__: /var/log/suricata/eve.json # Path to Suricata's EVE JSON log
+    # Pipeline stages to parse the JSON logs.
+    # Suricata's EVE JSON is already structured, so we mostly relabel and parse.
+    pipeline_stages:
+      - json:
+          expressions:
+            eve_timestamp: timestamp
+            event_type: event_type
+            src_ip: src_ip
+            src_port: src_port
+            dest_ip: dest_ip
+            dest_port: dest_port
+            proto: proto
+            alert_signature: alert.signature
+            alert_category: alert.category
+      - labels:
+          event_type:
+          src_ip:
+          dest_ip:
+          proto:
+          alert_signature:
+          alert_category:
+      - timestamp:
+          source: eve_timestamp
+          format: RFC3339
