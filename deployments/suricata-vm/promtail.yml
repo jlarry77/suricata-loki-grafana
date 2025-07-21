@@ -1,0 +1,44 @@
+auth_enabled: false # For homelab simplicity. For production, consider authentication.
+
+server:
+  http_listen_port: 3100
+  grpc_listen_port: 9095
+
+common:
+  path_prefix: /var/lib/loki
+  replication_factor: 1
+  ring:
+    instance_addr: 127.0.0.1
+    kvstore:
+      store: inmemory # Simplest for homelab. For persistence/scaling, use 'boltdb-shipper' or 's3'.
+  storage_config:
+    boltdb_shipper: # Recommended for local storage and simple deployments for persistence
+      active_index_directory: /var/lib/loki/boltdb-shipper-active
+      cache_location: /var/lib/loki/boltdb-shipper-cache
+      cache_ttl: 24h         # Can be increased for longer retention
+    filesystem:
+      directory: /var/lib/loki/chunks # Where log data is stored
+
+schema_config:
+  configs:
+    - from: 2020-10-27 # Start date for this schema (can be any date in the past)
+      store: boltdb-shipper
+      object_store: filesystem
+      schema: v11
+      period: 24h # How often to rotate index files
+
+limits_config:
+  enforce_metric_name: false # Allows any metric name, simplifies things for homelab
+  max_query_series: 2000
+  max_query_length: 5m
+  max_query_lookback: 7d # How far back Loki can query logs. Adjust as needed.
+  # For homelab, you might want to increase this to, say, '30d' or '90d'
+  # if you want to retain logs for longer and your disk space allows.
+
+# This block is for defining how long chunks are kept in memory before flushing to disk
+chunk_store_config:
+  max_look_back_period: 24h # The maximum period Loki will look back into ingester's memory.
+
+compactor:
+  working_directory: /var/lib/loki/compactor
+  shared_store: filesystem
